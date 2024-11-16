@@ -3,7 +3,7 @@ const fs = require('fs');
 const opn = require('opn');
 const path = require('path');
 const { oAuth2Client, SCOPES } = require('./auth');
-const { listarTransmissaoAoVivo, enviarMensagemChat } = require('./youtube');
+const { listarTransmissaoAoVivo, enviarMensagemChat, obterLiveChatId, obterMensagensChat } = require('./youtube');
 
 const app = express();
 
@@ -88,6 +88,23 @@ app.get('/', (req, res) => {
   }
 });
 
+// Endpoint para capturar o Live Chat ID
+app.get('/api/live-chat-id', async (req, res) => {
+  const token = loadToken();
+  if (!token) {
+    return res.status(401).send('Autenticação necessária.');
+  }
+
+  oAuth2Client.setCredentials(token);
+
+  try {
+    const liveChatId = await obterLiveChatId(oAuth2Client);
+    res.json({ liveChatId });
+  } catch (err) {
+    res.status(500).send('Erro ao obter Live Chat ID.');
+  }
+});
+
 // Rota para enviar comentários ao chat do YouTube
 app.post('/send-comment', async (req, res) => {
   const { comment } = req.body;
@@ -139,6 +156,31 @@ function authenticate(oAuth2Client) {
     getAccessToken(oAuth2Client); // Solicita novo login
   }
 }
+
+
+// Rota para obter as mensagens do chat
+app.get('/api/get-chat-messages', async (req, res) => {
+  const token = loadToken();
+  if (!token) {
+    return res.status(401).send('Autenticação necessária.');
+  }
+
+  oAuth2Client.setCredentials(token);
+
+  try {
+    const liveChatId = await obterLiveChatId(oAuth2Client); // Obtém o ID do chat ativo
+    if (!liveChatId) {
+      return res.status(404).send('Nenhuma transmissão ao vivo encontrada.');
+    }
+
+    const mensagens = await obterMensagensChat(oAuth2Client, liveChatId); // Obtém as mensagens do chat
+    res.json({ mensagens });
+  } catch (err) {
+    res.status(500).send('Erro ao obter mensagens do chat.');
+  }
+});
+
+
 
 // Iniciar o servidor
 app.listen(3000, () => {

@@ -1,43 +1,237 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DuckStream - Enviar Comentário</title>
-</head>
-<body>
-  <h1>Enviar Comentário para o Chat do YouTube</h1>
-  <form id="commentForm">
-    <label for="comment">Comentário:</label>
-    <textarea id="comment" name="comment" rows="4" cols="50" required></textarea>
-    <button type="submit">Enviar Comentário</button>
-  </form>
+  <title>Enviar Comentário para o YouTube</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
 
-  <p id="status"></p>
+    #inputArea {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    #mensagem {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    #enviar {
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #enviar:hover {
+      background-color: #218838;
+    }
+
+    #chatArea {
+      margin-top: 20px;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    #mensagens {
+      margin-top: 10px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .mensagem {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 8px;
+      background-color: #f1f1f1;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .foto {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+
+    .message {
+      max-width: 80%;
+    }
+
+    .author {
+      font-weight: bold;
+      color: #007bff;
+    }
+
+    .username {
+      font-style: italic;
+      color: #555;
+    }
+
+    .timestamp {
+      font-size: 12px;
+      color: #888;
+      margin-left: auto;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="inputArea">
+    <h2>Enviar Comentário ao Chat do YouTube</h2>
+    <form id="commentForm">
+      <input type="text" id="mensagem" name="comment" placeholder="Digite sua mensagem..." required />
+      <button type="submit" id="enviar">Enviar</button>
+    </form>
+    <p id="status"></p>
+  </div>
+
+  <div id="chatArea">
+    <h2>Chat ao Vivo do YouTube</h2>
+    <div id="mensagens"></div>
+  </div>
 
   <script>
-    document.getElementById('commentForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const comment = document.getElementById('comment').value;
+    // Função para enviar a mensagem para o backend
+    async function enviarMensagem(event) {
+      event.preventDefault(); // Impede o comportamento padrão do formulário
 
-      // Enviar o comentário ao backend
-      const response = await fetch('/send-comment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ comment }),
-      });
+      const input = document.getElementById('mensagem');
+      const mensagem = input.value.trim();
 
-      const result = await response.json();
-      const status = document.getElementById('status');
-      if (result.success) {
-        status.textContent = 'Comentário enviado com sucesso!';
-        document.getElementById('comment').value = '';
-      } else {
-        status.textContent = `Erro: ${result.error}`;
+      if (!mensagem) {
+        alert('A mensagem não pode estar vazia.');
+        return;
       }
-    });
+
+      // Exibe uma mensagem de carregamento
+      const statusElement = document.getElementById('status');
+      statusElement.textContent = 'Enviando...';
+
+      try {
+        const response = await fetch('/send-comment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ comment: mensagem }),
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          input.value = ''; // Limpar o campo de entrada
+          statusElement.textContent = 'Comentário enviado com sucesso!';
+        } else {
+          statusElement.textContent = `Erro: ${result.error}`;
+        }
+      } catch (err) {
+        console.error('Erro ao enviar mensagem:', err);
+        statusElement.textContent = 'Erro ao enviar comentário.';
+      }
+    }
+
+    // Adiciona o evento de envio do formulário
+    document.getElementById('commentForm').addEventListener('submit', enviarMensagem);
+
+    // Função para atualizar as mensagens do chat
+    async function obterMensagensChat() {
+      try {
+        const response = await fetch('/api/get-chat-messages');
+        const result = await response.json();
+
+        if (result.mensagens) {
+          exibirMensagens(result.mensagens);
+        } else {
+          console.log('Nenhuma mensagem encontrada');
+        }
+      } catch (err) {
+        console.error('Erro ao obter mensagens:', err);
+      }
+    }
+
+    // Função para formatar a hora
+    function formatarHora(timestamp) {
+      const data = new Date(timestamp);
+      const horas = String(data.getHours()).padStart(2, '0');
+      const minutos = String(data.getMinutes()).padStart(2, '0');
+      return `${horas}:${minutos}`;
+    }
+
+    // Função para exibir as mensagens na interface
+    function exibirMensagens(mensagens) {
+      const mensagensContainer = document.getElementById('mensagens');
+      mensagensContainer.innerHTML = ''; // Limpa as mensagens antigas
+
+      mensagens.forEach(mensagem => {
+        const div = document.createElement('div');
+        div.classList.add('mensagem');
+
+        // Cria a imagem da foto do autor
+        const foto = document.createElement('img');
+        foto.classList.add('foto');
+        foto.src = mensagem.photo; // A URL da foto
+
+        // Cria o texto da mensagem
+        const messageText = document.createElement('div');
+        messageText.classList.add('message');
+
+        // Adiciona o nome do autor, nome de usuário e mensagem
+        const authorName = document.createElement('div');
+        authorName.classList.add('author');
+        authorName.textContent = mensagem.channelID;
+
+        const username = document.createElement('div');
+        username.classList.add('username');
+        username.textContent = `(@${mensagem.username})`; // Nome de usuário
+
+        const messageContent = document.createElement('div');
+        messageContent.textContent = mensagem.message;
+
+        // Adiciona a hora
+        const timestamp = document.createElement('div');
+        timestamp.classList.add('timestamp');
+        timestamp.textContent = formatarHora(mensagem.time);
+
+        messageText.appendChild(authorName);
+        messageText.appendChild(username);
+        messageText.appendChild(messageContent);
+
+        div.appendChild(foto);
+        div.appendChild(messageText);
+        div.appendChild(timestamp);
+
+        mensagensContainer.appendChild(div);
+      });
+    }
+
+    // Atualizar mensagens a cada 5 segundos
+    setInterval(obterMensagensChat, 5000);
   </script>
+
 </body>
+
 </html>
