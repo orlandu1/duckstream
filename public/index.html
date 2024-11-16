@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DuckStream - Enviar Comentário</title>
+</head>
+<body>
+  <h1>Enviar Comentário para o Chat do YouTube</h1>
+  <form id="commentForm">
+    <label for="comment">Comentário:</label>
+    <textarea id="comment" name="comment" rows="4" cols="50" required></textarea>
+    <button type="submit">Enviar Comentário</button>
+  </form>
+
+  <p id="status"></p>
+
+  <script>
+    document.getElementById('commentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const comment = document.getElementById('comment').value;
+
+      // Enviar o comentário ao backend
+      const response = await fetch('/send-comment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ comment }),
+      });
+
+      const result = await response.json();
+      const status = document.getElementById('status');
+      if (result.success) {
+        status.textContent = 'Comentário enviado com sucesso!';
+        document.getElementById('comment').value = '';
+      } else {
+        status.textContent = `Erro: ${result.error}`;
+      }
+    });
+  </script>
+</body>
+</html>

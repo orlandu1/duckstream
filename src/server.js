@@ -1,10 +1,23 @@
 const express = require('express');
 const fs = require('fs');
 const opn = require('opn');
+const path = require('path');
 const { oAuth2Client, SCOPES } = require('./auth');
-const { listarTransmissaoAoVivo } = require('./youtube');
+const { listarTransmissaoAoVivo, enviarMensagemChat } = require('./youtube');
 
 const app = express();
+
+
+// Middleware para processar arquivos estáticos
+app.use(express.static('public'));
+
+// Middleware para processar JSON
+app.use(express.json());
+
+// Rota para exibir o index.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Função para carregar o token
 function loadToken() {
@@ -75,6 +88,33 @@ app.get('/', (req, res) => {
   }
 });
 
+// Rota para enviar comentários ao chat do YouTube
+app.post('/send-comment', async (req, res) => {
+  const { comment } = req.body;
+  if (!comment) {
+    return res.status(400).json({ success: false, error: 'Comentário não fornecido.' });
+  }
+
+  const token = loadToken();
+  if (!token || isTokenInvalid(token)) {
+    return res.status(401).json({ success: false, error: 'Token inválido ou expirado. Faça login novamente.' });
+  }
+
+  try {
+    oAuth2Client.setCredentials(token);
+    const liveChatId = await listarTransmissaoAoVivo(oAuth2Client); // Obtém o ID do chat ativo
+    if (!liveChatId) {
+      return res.status(404).json({ success: false, error: 'Nenhuma transmissão ao vivo encontrada.' });
+    }
+
+    await enviarMensagemChat(oAuth2Client, liveChatId, comment);
+    res.json({ success: true, message: 'Comentário enviado com sucesso!' });
+  } catch (err) {
+    console.error('Erro ao enviar comentário:', err);
+    res.status(500).json({ success: false, error: 'Erro ao enviar comentário.' });
+  }
+});
+
 // Função principal para carregar ou solicitar novo token
 function authenticate(oAuth2Client) {
   const token = loadToken();
@@ -99,7 +139,6 @@ function authenticate(oAuth2Client) {
     getAccessToken(oAuth2Client); // Solicita novo login
   }
 }
-
 
 // Iniciar o servidor
 app.listen(3000, () => {
