@@ -3,14 +3,13 @@
 |   |-- credentials.js
 |-- /node_modules
 |-- /src
-|   |-- server.js
 |   |-- auth.js
+|   |-- server.js
 |   |-- youtube.js
 |-- .gitignore
 |-- package-lock.json
 |-- package.json
 |-- README
-|-- /token.js
 |-- /token.json
 
 
